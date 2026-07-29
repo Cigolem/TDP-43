@@ -1,0 +1,133 @@
+
+
+
+%% Polar and violin plots of Phase (MPA) PFC LFP   Figure 7
+
+load('D:\TDP\submission_sleep\final_spindle_scripts\sp_swa_assoc_results_5_on_and_off.mat')
+
+clearvars -except all_results
+
+% Extract spindle phases and MPA per mouse
+WT_phases  = [];
+HOM_phases = [];
+WT_MPA     = [];
+HOM_MPA    = [];
+
+for i = 1:length(all_results.PFC_LFP.light_on)
+    entry = all_results.PFC_LFP.light_on(i);
+    if strcmp(entry.group, 'WT')
+        WT_phases  = [WT_phases,  entry.spindle_phases];
+        WT_MPA(end+1) = entry.MPA;
+    else
+        HOM_phases  = [HOM_phases,  entry.spindle_phases];
+        HOM_MPA(end+1) = entry.MPA;
+    end
+end
+
+color_wt  = [0.25 0.65 0.55];
+color_hom = [0.9 0.2 0.7];
+
+figure('Position', [100 100 1200 450]);
+
+% Panel 1: WT polar plot
+subplot(1,3,1);
+n_bins = 24;
+edges  = linspace(-pi, pi, n_bins+1);
+
+% Histogram counts
+wt_counts  = histcounts(WT_phases,  edges);
+
+% Plot
+polarhistogram('BinEdges', edges, 'BinCounts', wt_counts, ...
+    'FaceColor', color_wt, 'EdgeColor', 'k', 'FaceAlpha', 0.8);
+hold on;
+
+% Mean vector
+wt_mrl = abs(mean(exp(1i * WT_phases)));
+wt_mpa = angle(mean(exp(1i * WT_phases)));
+max_r   = max(wt_counts);
+polarplot([wt_mpa wt_mpa], [0 max_r * wt_mrl], 'k-', 'LineWidth', 3);
+
+title('WT', 'FontSize', 14, 'FontWeight', 'bold');
+ax = gca;
+ax.ThetaZeroLocation = 'right';
+ax.ThetaDir = 'counterclockwise';
+ax.ThetaTickLabel = {'0° (peak)', '30°', '60°', '90°', '120°', '150°', ...
+                     '±180° (trough)', '210°', '240°', '270°', '300°', '330°'};
+subtitle(sprintf('MRVL=%.3f  MPA=%.1f°', wt_mrl, rad2deg(wt_mpa)), 'FontSize', 11);
+
+% Panel 2: HOM polar plot
+subplot(1,3,2);
+hom_counts = histcounts(HOM_phases, edges);
+
+polarhistogram('BinEdges', edges, 'BinCounts', hom_counts, ...
+    'FaceColor', color_hom, 'EdgeColor', 'k', 'FaceAlpha', 0.8);
+hold on;
+
+hom_mrl = abs(mean(exp(1i * HOM_phases)));
+hom_mpa = angle(mean(exp(1i * HOM_phases)));
+max_r    = max(hom_counts);
+polarplot([hom_mpa hom_mpa], [0 max_r * hom_mrl], 'k-', 'LineWidth', 3);
+
+title('Q331K', 'FontSize', 14, 'FontWeight', 'bold');
+ax = gca;
+ax.ThetaZeroLocation = 'right';
+ax.ThetaDir = 'counterclockwise';
+ax.ThetaTickLabel = {'0° (peak)', '30°', '60°', '90°', '120°', '150°', ...
+                     '±180° (trough)', '210°', '240°', '270°', '300°', '330°'};
+subtitle(sprintf('MRVL=%.3f  MPA=%.1f°', hom_mrl, rad2deg(hom_mpa)), 'FontSize', 11);
+
+% Panel 3: MPA violin plot
+subplot(1,3,3);
+hold on;
+
+pos_wt  = 1;
+pos_hom = 2;
+
+simple_violin({WT_MPA},  pos_wt,  color_wt,  0.35);
+simple_violin({HOM_MPA}, pos_hom, color_hom, 0.35);
+
+scatter(pos_wt  * ones(1,length(WT_MPA)),  WT_MPA,  100, 'o', ...
+    'MarkerEdgeColor','k','MarkerFaceColor',color_wt, 'LineWidth',1.5,'MarkerFaceAlpha',0.8);
+scatter(pos_hom * ones(1,length(HOM_MPA)), HOM_MPA, 100, 'o', ...
+    'MarkerEdgeColor','k','MarkerFaceColor',color_hom,'LineWidth',1.5,'MarkerFaceAlpha',0.8);
+
+% Mean lines
+plot([pos_wt-0.2  pos_wt+0.2],  [mean(WT_MPA)  mean(WT_MPA)],  'k-','LineWidth',2);
+plot([pos_hom-0.2 pos_hom+0.2], [mean(HOM_MPA) mean(HOM_MPA)], 'k-','LineWidth',2);
+
+% P value
+[~, p_mpa] = ttest2(WT_MPA, HOM_MPA, 'Vartype', 'unequal');
+if p_mpa < 0.05
+    pstr = sprintf('p = %.3f', p_mpa);
+else
+    pstr = sprintf('p = %.3f', p_mpa);
+end
+y_top   = max([WT_MPA, HOM_MPA]);
+y_bot   = min([WT_MPA, HOM_MPA]);
+y_range = y_top - y_bot;
+% bracket_y = y_top + y_range * 0.18;
+text_y    = y_top + y_range * 0.45;
+% plot([pos_wt pos_wt pos_hom pos_hom], ...
+%      [bracket_y*0.98 bracket_y bracket_y bracket_y*0.98], 'k-', 'LineWidth', 1.2);
+text(mean([pos_wt pos_hom])- 0.3, text_y, pstr, ...
+     'HorizontalAlignment','center','FontSize',13);
+% ylim([y_bot - y_range*0.1, text_y + y_range*0.1]);
+ylim([-120, -50]);
+
+ylabel('Mean Phase Angle (°)', 'FontSize', 14, 'FontWeight', 'bold');
+xticks([pos_wt pos_hom]);
+xticklabels({'WT', 'Q331K'});
+xlim([0.4 2.6]);
+box off;
+set(gca, 'FontSize', 13, 'LineWidth', 1.5);
+title('MPA', 'FontSize', 14, 'FontWeight', 'bold');
+
+% reduce panel 3 height
+pos = get(gca, 'Position');
+pos(4) = pos(4) * 0.7;              % reduce height to 70%
+pos(2) = pos(2) + pos(4)*0.3/0.7/2; % re-centre vertically
+set(gca, 'Position', pos);
+
+
+
